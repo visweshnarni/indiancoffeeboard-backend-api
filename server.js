@@ -14,7 +14,7 @@ import connectDB from './src/config/db.js';
 // Import NEW routes for the Registration project
 import competitionRoutes from './src/routes/competitionRoutes.js';
 import registrationRoutes from './src/routes/registrationRoutes.js';
-// import paymentRoutes from './src/routes/paymentRoutes.js';
+import paymentRoutes from './src/routes/paymentRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +40,7 @@ app.use('/api', competitionRoutes); // Mounted at /api so routes inside can be /
 app.use('/api', registrationRoutes); // Mounted at /api so routes inside can be /registration
 
 // 3. Payment (POST /api/payment/order, POST /api/payment)
-// app.use('/api/payment', paymentRoutes); // Mounted at /api/payment
+app.use('/api/payment', paymentRoutes); // Mounted at /api/payment
 
 // --- End of NEW Routes ---
 

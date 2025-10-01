@@ -1,7 +1,8 @@
 import express from 'express';
 import { 
     createRegistration, 
-    updateRegistrationPayment,
+    // 🛑 FIX: Change the import name here
+    updateRegistrationStatus, // <-- Use the new name
     getAllRegistrations, 
     getRegistrationById,
     deleteRegistrationById
@@ -17,7 +18,7 @@ const router = express.Router();
 router.post('/registration', registrationUpload, createRegistration);
 
 // PATCH /api/registration (Update Payment Status using custom registrationId)
-router.patch('/registration', updateRegistrationPayment); 
+router.patch('/registration', updateRegistrationStatus); 
 
 
 // --- Admin Routes (Add Authorization Middleware Here if needed) ---

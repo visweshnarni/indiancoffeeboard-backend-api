@@ -1,9 +1,8 @@
 import Registration from '../models/Registration.js';
-import { v2 as cloudinary } from 'cloudinary'; // If needed for deletion, otherwise import upload utility
-import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js'; // ✅ Cloudinary Upload Utility
+import { v2 as cloudinary } from 'cloudinary'; 
+import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js'; 
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path'; // ✅ ADD THIS IMPORT
-
+import path from 'path'; // ✅ path is now correctly imported
 
 // Helper function to generate a unique registration ID
 const generateRegistrationId = () => {
@@ -19,22 +18,15 @@ export const createRegistration = async (req, res) => {
     
     // 1. ✅ HANDLE FILE SAVING (CLOUDARY)
     if (passportFile) {
-        // Create a user-friendly folder name (e.g., John_A_Doe)
-        // Clean name and replace spaces with underscores
         const fullName = data.name.replace(/\s+/g, '_').toLowerCase(); 
-        
-        // Use original file extension
         const fileExtension = path.extname(passportFile.originalname);
-        // Create a unique filename for Cloudinary
         const uniqueFileName = `passport-${uuidv4()}${fileExtension}`;
 
-        // Upload the buffer from memory to Cloudinary
         passportFileUrl = await uploadBufferToCloudinary(
             passportFile.buffer,
             uniqueFileName,
             fullName
         );
-        // passportFileUrl is the secure URL returned by Cloudinary
     }
     
     // 2. CHECK FOR EXISTING REGISTRATION 
@@ -50,12 +42,13 @@ export const createRegistration = async (req, res) => {
 
     if (exists) {
         if (exists.paymentStatus === "success") {
-             // ⚠️ If file was uploaded, we might want to clean up Cloudinary here. (Advanced/optional)
+            // Rejects new registration if payment is already complete
             return res.status(409).json({ 
                 error: "A registration with this email, mobile, or Aadhaar already exists and is paid."
             });
         } 
         
+        // Allows retry/proceed if payment is pending/failed (crucial for payment flow)
         return res.status(200).json({
             success: true,
             registration: exists,
@@ -71,17 +64,17 @@ export const createRegistration = async (req, res) => {
         email: data.email,
         mobile: data.mobile,
         address: data.address,
-        // 🛑 REMOVED 'city' as per schema update
+        // 🛑 'city' removed here based on schema update
         state: data.state,
         pin: data.pin,
-        aadhaarNumber: cleanedAadhaar, // Store cleaned number
+        aadhaarNumber: cleanedAadhaar,
         competition: data.competition,
         competitionName: data.competitionName,
         passportNumber: data.passportNumber,
-        passportFileUrl: passportFileUrl, // Store the Cloudinary URL
+        passportFileUrl: passportFileUrl, 
         acceptedTerms: data.acceptedTerms === 'true', 
-        amount: data.amount ? parseFloat(data.amount) : 0, // Safe parsing
-        paymentStatus: "pending", 
+        amount: data.amount ? parseFloat(data.amount) : 0,
+        paymentStatus: "pending", // Always pending upon creation
     });
 
     const savedRegistration = await newRegistration.save();
@@ -134,8 +127,9 @@ export const getRegistrationById = async (req, res) => {
     }
 };
 
-// --- PATCH: Update Payment Status (Used after Razorpay verification) ---
-export const updateRegistrationPayment = async (req, res) => {
+// --- PATCH: Update Registration Status (Generic function used by Instamojo Webhook) ---
+// ⚠️ Renamed from updateRegistrationPayment to be a generic status updater
+export const updateRegistrationStatus = async (req, res) => {
     try {
         const { registrationId, paymentStatus, paymentId } = req.body; 
 
@@ -152,12 +146,14 @@ export const updateRegistrationPayment = async (req, res) => {
         );
 
         if (!updated) {
+            // For webhooks, we usually return 200/204 even if not found, 
+            // but for a direct API call, 404 is appropriate.
             return res.status(404).json({ error: "Registration not found." });
         }
 
         res.json({ success: true, registration: updated });
     } catch (err) {
-        console.error("❌ Registration PATCH Error:", err);
+        console.error("❌ Registration Status Update Error:", err);
         res.status(500).json({ error: "Server error during payment status update.", details: err.message });
     }
 };
@@ -166,15 +162,12 @@ export const updateRegistrationPayment = async (req, res) => {
 export const deleteRegistrationById = async (req, res) => {
     try {
         const { id } = req.params; 
-
         const registration = await Registration.findById(id);
-        if (!registration) {
-            return res.status(404).json({ error: "Registration not found." });
-        }
+        
+        if (!registration) return res.status(404).json({ error: "Registration not found." });
 
-        // ✅ Cloudinary Cleanup (Requires a utility using cloudinary.uploader.destroy)
-        // We assume you'll implement the actual Cloudinary deletion call here if needed
-        // For now, local FS delete logic is removed as the file is on Cloudinary.
+        // ⚠️ Cloudinary Deletion: Needs a separate utility call using the Cloudinary API.
+        // For production, you'd use registration.passportFileUrl to extract the public_id and delete it.
         
         await registration.deleteOne(); 
         res.status(200).json({ message: "Registration successfully deleted." });
