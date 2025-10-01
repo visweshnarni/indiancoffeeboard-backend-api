@@ -21,12 +21,20 @@
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.0",
-    "multer": "^2.0.1",
+    "mongoose": "^8.18.3",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.4",
     "nodemon": "^3.1.10",
+    "razorpay": "^2.9.6",
     "streamifier": "^0.1.1",
     "stripe": "^18.3.0",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/mongoose": "^5.11.96",
+    "@types/multer": "^2.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
