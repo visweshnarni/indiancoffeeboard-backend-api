@@ -5,7 +5,7 @@ import sendConfirmation from '../utils/sendConfirmation.js'; // ✅ Import sendC
 
 dotenv.config();
 
-const INSTAMOJO_API_URL = 'https://api.instamojo.com/v2/payment_requests/'; 
+const INSTAMOJO_API_URL = 'https://www.instamojo.com/api/1.1/payment-requests/'; 
 
 // --- POST: Initiate Payment and Get Redirect URL ---
 export const initiateInstamojoPayment = async (req, res) => {
@@ -26,7 +26,7 @@ export const initiateInstamojoPayment = async (req, res) => {
 
         // Construct URLs from .env variables
         const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/registration/status?registrationId=${registrationId}`;
-        const webhookUrl = process.env.WEBHOOK_URL; // e.g., http://yourdomain.com/api/payment/webhook
+        const webhookUrl = process.env.WEBHOOK_URL;
 
         const payload = {
             purpose: `Competition Registration: ${registration.competitionName}`,
@@ -37,22 +37,30 @@ export const initiateInstamojoPayment = async (req, res) => {
             redirect_url: redirectUrl,
             webhook: webhookUrl,
             allow_repeated_payments: false,
+            send_email: true,
+            send_sms: true,
             custom_fields: {
                 registration_id: registrationId
             }
         };
 
+        // ✅ CORRECTED AUTH HEADERS
+        // Add this debug logging to check your credentials (remove in production)
+console.log('API Key exists:', !!process.env.INSTAMOJO_PRIVATE_API_KEY);
+console.log('Auth Token exists:', !!process.env.INSTAMOJO_PRIVATE_AUTH_TOKEN);
+console.log('API Key length:', process.env.INSTAMOJO_PRIVATE_API_KEY?.length);
+console.log('Auth Token length:', process.env.INSTAMOJO_PRIVATE_AUTH_TOKEN?.length);
         const response = await axios.post(INSTAMOJO_API_URL, payload, {
             headers: {
-                'Authorization': `Private-API-Key ${process.env.INSTAMOJO_PRIVATE_API_KEY}`,
-                'Private-Auth-Token': process.env.INSTAMOJO_PRIVATE_AUTH_TOKEN,
+                'Authorization': `Bearer ${process.env.INSTAMOJO_PRIVATE_API_KEY}`,
+                'X-Api-Key': process.env.INSTAMOJO_PRIVATE_API_KEY,
+                'X-Auth-Token': process.env.INSTAMOJO_PRIVATE_AUTH_TOKEN,
                 'Content-Type': 'application/json'
             }
         });
 
         const paymentData = response.data;
         
-        // Update the registration record with the Instamojo payment ID
         await Registration.updateOne(
             { registrationId },
             { $set: { instamojoPaymentId: paymentData.id, paymentStatus: 'pending' } }
@@ -72,15 +80,30 @@ export const initiateInstamojoPayment = async (req, res) => {
         });
     }
 };
-
 // --- POST: Webhook Handler for Payment Status Update (Final Confirmation Point) ---
+// --- POST: Webhook Handler with Signature Verification ---
 export const instamojoWebhook = async (req, res) => {
     const data = req.body;
-    const paymentStatus = data.status; // 'Credit' or 'Failed'
+    
+    // ✅ VERIFY WEBHOOK SIGNATURE
+    const providedSignature = req.headers['x-instamojo-signature'];
+    const salt = process.env.INSTAMOJO_SALT;
+    
+    if (!verifyWebhookSignature(data, providedSignature, salt)) {
+        console.error('Webhook signature verification failed');
+        return res.status(401).end();
+    }
+
+    const paymentStatus = data.status;
     const instamojoPaymentId = data.payment_id;
-    const registrationId = data.custom_fields.registration_id; 
+    const registrationId = data.custom_fields?.registration_id; 
 
     try {
+        if (!registrationId) {
+            console.error('Webhook error: No registration ID in custom fields');
+            return res.status(400).end();
+        }
+
         const registration = await Registration.findOne({ registrationId });
 
         if (!registration) {
@@ -89,35 +112,29 @@ export const instamojoWebhook = async (req, res) => {
         }
 
         let newStatus = 'failed';
-        // ⚠️ Instamojo returns amounts as strings. Ensure comparison is safe.
-        // Also ensure you compare against the amount stored in the DB (registration.amount)
-        if (paymentStatus === 'Credit' && data.amount === String(registration.amount)) {
+        if (paymentStatus === 'Credit' && parseFloat(data.amount) === parseFloat(registration.amount)) {
             newStatus = 'success';
         }
 
-        // 2. Update Database
         const updatedRegistration = await Registration.findOneAndUpdate(
             { registrationId },
             { 
                 $set: { 
                     paymentStatus: newStatus,
-                    paymentId: instamojoPaymentId // Store the actual payment ID
+                    paymentId: instamojoPaymentId
                 } 
             },
-            { new: true } // Return the updated document
+            { new: true }
         );
 
-        // 3. ✅ SEND CONFIRMATION EMAIL IF SUCCESSFUL
+        // ✅ SEND CONFIRMATION EMAIL IF SUCCESSFUL
         if (newStatus === 'success' && updatedRegistration) {
             try {
-                // Pass all required data to generate PDF and send email
                 await sendConfirmation({
                     name: updatedRegistration.name,
                     email: updatedRegistration.email,
                     mobile: updatedRegistration.mobile,
-                    // 🛑 Using 'N/A' for city since it was removed from the schema.
-                    // Replace with the chapter city if you have it elsewhere.
-                    city: 'N/A', 
+                    city: 'N/A',
                     competitionName: updatedRegistration.competitionName,
                     registrationId: updatedRegistration.registrationId,
                     amount: updatedRegistration.amount,
@@ -125,11 +142,9 @@ export const instamojoWebhook = async (req, res) => {
                 });
             } catch (emailErr) {
                 console.error("❌ Failed to send confirmation email:", emailErr);
-                // Non-fatal error for the webhook—still return 200 to Instamojo
             }
         }
 
-        // 4. Respond to Instamojo (MUST return 200/204 to confirm receipt)
         res.status(200).end();
 
     } catch (error) {
@@ -137,3 +152,20 @@ export const instamojoWebhook = async (req, res) => {
         res.status(500).end(); 
     }
 };
+
+// ✅ WEBHOOK SIGNATURE VERIFICATION FUNCTION
+function verifyWebhookSignature(data, providedSignature, salt) {
+    const crypto = require('crypto');
+    
+    // Create the expected signature
+    const message = JSON.stringify(data);
+    const expectedSignature = crypto
+        .createHmac('sha1', salt)
+        .update(message)
+        .digest('hex');
+    
+    return crypto.timingSafeEqual(
+        Buffer.from(providedSignature, 'hex'),
+        Buffer.from(expectedSignature, 'hex')
+    );
+}
