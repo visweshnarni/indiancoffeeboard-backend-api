@@ -75,6 +75,7 @@ export const createRegistration = async (req, res) => {
         acceptedTerms: data.acceptedTerms === 'true', 
         amount: data.amount ? parseFloat(data.amount) : 0,
         paymentStatus: "pending", // Always pending upon creation
+        workPlace: data.workPlace || "", //  Added workPlace field
     });
 
     const savedRegistration = await newRegistration.save();

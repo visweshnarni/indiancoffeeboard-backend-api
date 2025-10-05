@@ -87,7 +87,7 @@ export const updateCompetition = async (req, res) => {
 export const deleteCompetition = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Find and remove the document
     const deletedCompetition = await Competition.findByIdAndDelete(id);
 

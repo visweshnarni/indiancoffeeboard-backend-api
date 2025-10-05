@@ -17,6 +17,7 @@ const RegistrationSchema = new Schema(
     // Aadhaar number is a string field
     aadhaarNumber: { type: String, required: true }, 
     competition: { type: String, required: true }, // Competition ID
+    workPlace: { type: String, required:true }, // Added workPlace field
     competitionName: { type: String },
     passportNumber: { type: String },
     // Storing the URL or path to the uploaded file as a String
