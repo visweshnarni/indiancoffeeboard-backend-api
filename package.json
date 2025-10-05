@@ -30,9 +30,7 @@
     "nodemon": "^3.1.10",
     "pdfkit": "^0.17.2",
     "qrcode": "^1.5.4",
-    "razorpay": "^2.9.6",
     "streamifier": "^0.1.1",
-    "stripe": "^18.3.0",
     "uuid": "^11.1.0",
     "zeptomail": "^6.2.1"
   },
