@@ -287,26 +287,19 @@ export const handleCallback = async (req, res) => {
             // The rest of the email logic remains the same
             try {
                 await sendEmailWithTemplate({
-                    to: registration.email,
-                    name: registration.name,
-                    templateKey: "2518b.554b0da719bc314.k1.2223f750-a1cf-11f0-b228-cabf48e1bf81.199b3bd3345", // your ZeptoMail template key
-                    mergeInfo: {
-                        registration_id: registration.registrationId, // Now guaranteed to be set
-                        competition_name: registration.competitionName,
-                        name: registration.name,
-                        email: registration.email,
-                        mobile: registration.mobile,
-                        amount: registration.amount.toFixed(2),
-                        competition_city: registration.competitionCity,
-                        payment_status: registration.paymentStatus,
-                        passport_number: registration.passportNumber || '',
-                        aadhaar_number: registration.aadhaarNumber || '',
-                        workplace: registration.workPlace || '',
-                        address: registration.address || '',
-                        state: registration.state || '',
-                        pin: registration.pin || ''
-                    },
-                });
+            to: registration.email,
+            name: registration.name,
+            templateKey: "YOUR_NCC_2025_TEMPLATE_KEY", // <-- Update with your ZeptoMail template key
+            mergeInfo: {
+                participantName: registration.name,
+                registrationId: registration.registrationId,
+                competitionName: registration.competitionName,
+                mobile: registration.mobile,
+                amount: registration.amount.toFixed(2),
+                paymentId: registration.paymentId,
+                year: new Date().getFullYear()
+            },
+        });
             } catch (emailErr) {
                 console.error("❌ Failed to send registration confirmation email:", emailErr);
             }
