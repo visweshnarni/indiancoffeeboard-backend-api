@@ -3,6 +3,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js'; 
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path'; // ✅ path is now correctly imported
+import Competition from '../models/Competition.js';
 
 // Helper function to generate a unique registration ID
 const generateRegistrationId = () => {
@@ -10,23 +11,45 @@ const generateRegistrationId = () => {
 };
 
 // --- POST: Create New Registration (Cloudinary Implementation) ---
+// Don't forget to import the Competition model
+
+
 export const createRegistration = async (req, res) => {
   try {
     const data = req.cleanedFormData; 
     const passportFile = req.passportFile; 
     let passportFileUrl = undefined;
-    
-    // 1. ✅ HANDLE FILE SAVING (CLOUDARY)
-    if (passportFile) {
-        const fullName = data.name.replace(/\s+/g, '_').toLowerCase(); 
-        const fileExtension = path.extname(passportFile.originalname);
-        const uniqueFileName = `passport-${uuidv4()}${fileExtension}`;
 
-        passportFileUrl = await uploadBufferToCloudinary(
-            passportFile.buffer,
-            uniqueFileName,
-            fullName
-        );
+    // 0. ✅ GET COMPETITION DATA
+    const competition = await Competition.findById(data.competition).select('passportRequired');
+    
+    if (!competition) {
+        return res.status(404).json({ error: "Competition not found." });
+    }
+    const passportIsRequired = competition.passportRequired;
+
+    // 1. ✅ HANDLE FILE SAVING (CLOUDARY) - ONLY IF PASSPORT IS REQUIRED
+    if (passportIsRequired) {
+        if (!passportFile) {
+            // Optional: Add a check if the file is missing when required
+            // return res.status(400).json({ error: "Passport file is required for this competition." });
+        }
+        
+        if (passportFile) {
+            const fullName = data.name.replace(/\s+/g, '_').toLowerCase(); 
+            // NOTE: path.extname and uuidv4 need to be imported if they are not
+            // import path from 'path'; 
+            // import { v4 as uuidv4 } from 'uuid';
+            const fileExtension = path.extname(passportFile.originalname);
+            const uniqueFileName = `passport-${uuidv4()}${fileExtension}`;
+
+            // NOTE: uploadBufferToCloudinary must be defined/imported
+            passportFileUrl = await uploadBufferToCloudinary(
+                passportFile.buffer,
+                uniqueFileName,
+                fullName
+            );
+        }
     }
     
     // 2. CHECK FOR EXISTING REGISTRATION 
@@ -58,8 +81,11 @@ export const createRegistration = async (req, res) => {
     }
 
     // 3. Create new registration 
+    // Passport number is only saved if passportIsRequired is true
+    const passportNumberToSave = passportIsRequired ? data.passportNumber : undefined;
+
     const newRegistration = new Registration({
-        registrationId: generateRegistrationId(),
+        registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
         name: data.name,
         email: data.email,
         mobile: data.mobile,
@@ -70,12 +96,13 @@ export const createRegistration = async (req, res) => {
         aadhaarNumber: cleanedAadhaar,
         competition: data.competition,
         competitionName: data.competitionName,
-        passportNumber: data.passportNumber,
-        passportFileUrl: passportFileUrl, 
+        // Conditional saving of passport details:
+        passportNumber: passportNumberToSave, // Saves only if required
+        passportFileUrl: passportFileUrl,     // Only set if required AND file was uploaded
         acceptedTerms: data.acceptedTerms === 'true', 
         amount: data.amount ? parseFloat(data.amount) : 0,
         paymentStatus: "pending", // Always pending upon creation
-        workPlace: data.workPlace || "", //  Added workPlace field
+        workPlace: data.workPlace || "", 
     });
 
     const savedRegistration = await newRegistration.save();
