@@ -1,5 +1,8 @@
-import express from 'express';
 import dotenv from 'dotenv';
+dotenv.config(); // Load .env before using process.env
+
+import express from 'express';
+
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -16,7 +19,6 @@ import paymentRoutes from './src/routes/paymentRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config(); // Load .env before using process.env
 
 const app = express();
 
