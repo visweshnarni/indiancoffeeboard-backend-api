@@ -28,7 +28,7 @@ const generateRegistrationId = () => {
     const randomAlphanumeric = Math.random().toString(36).substring(2).slice(0, 6);
 
     // 2. Combine the 'REG-' prefix and the random part, then convert all to uppercase.
-    return `REG-${randomAlphanumeric}`.toUpperCase();
+    return `IICF-${randomAlphanumeric}`.toUpperCase();
 };
 
 const extractId = (val) => val ? val.replace(/\/$/, '').split('/').pop() : '';
