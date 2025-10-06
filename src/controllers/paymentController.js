@@ -21,9 +21,14 @@ const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL;
 
 // --- Utility Functions ---
 const generateRegistrationId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 6);
-    return `REG-${timestamp}-${randomPart}`.toUpperCase();
+    // 1. Generate a random alphanumeric string (e.g., 'z9h7y6')
+    //    - Math.random() is converted to base 36 (0-9, a-z).
+    //    - substring(2) removes the leading '0.'
+    //    - slice(0, 6) ensures exactly 6 characters.
+    const randomAlphanumeric = Math.random().toString(36).substring(2).slice(0, 6);
+
+    // 2. Combine the 'REG-' prefix and the random part, then convert all to uppercase.
+    return `REG-${randomAlphanumeric}`.toUpperCase();
 };
 
 const extractId = (val) => val ? val.replace(/\/$/, '').split('/').pop() : '';
@@ -130,7 +135,7 @@ export const registerAndPay = async (req, res) => {
 
         const newRegistration = new Registration({
             ...registrationData,
-            registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
+            // registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
             competitionName: competitionDoc.name,
             passportNumber: passportNumberToSave,       // Conditional
             passportFileUrl: passportFileUrl,           // Conditional
@@ -199,6 +204,9 @@ export const registerAndPay = async (req, res) => {
 
 
 // --- 2. Handle Callback with Server-side Verification (User Redirect) ---
+// Ensure generateRegistrationId is available (if not, you need to import it or define it here)
+// const generateRegistrationId = () => { /* ... your implementation ... */ }; 
+
 export const handleCallback = async (req, res) => {
     // We extract the registration_id and the Instamojo parameters
     const { registration_id } = req.query;
@@ -213,6 +221,12 @@ export const handleCallback = async (req, res) => {
         if (!registration) {
             console.error(`Callback Error: Registration ID ${registration_id} not found.`);
             return res.redirect(`${FRONTEND_BASE_URL}/registration-error?message=RegistrationNotFound`);
+        }
+        
+        // Skip further processing if the registration is already marked as 'success'
+        if (registration.paymentStatus === 'success' && registration.registrationId) {
+             console.log(`Registration ${registration._id} already processed as success.`);
+             return res.redirect(`${FRONTEND_BASE_URL}/registration-success?id=${registration._id}`);
         }
 
         let finalStatus = 'failed';
@@ -260,14 +274,23 @@ export const handleCallback = async (req, res) => {
         registration.paymentStatus = finalStatus;
 
         if (finalStatus === 'success') {
+            
+            // ⭐️ CORE CHANGE: GENERATE registrationId ONLY ON SUCCESS ⭐️
+            if (!registration.registrationId) {
+                registration.registrationId = generateRegistrationId();
+                console.log(`✅ Payment SUCCESS. Generated Final Registration ID: ${registration.registrationId}`);
+            }
+
             console.log(`Payment confirmed for Registration ${registration._id}. Sending confirmation email...`);
+            
+            // The rest of the email logic remains the same
             try {
                 await sendEmailWithTemplate({
                     to: registration.email,
                     name: registration.name,
                     templateKey: "2518b.554b0da719bc314.k1.2223f750-a1cf-11f0-b228-cabf48e1bf81.199b3bd3345", // your ZeptoMail template key
                     mergeInfo: {
-                        registration_id: registration.registrationId,
+                        registration_id: registration.registrationId, // Now guaranteed to be set
                         competition_name: registration.competitionName,
                         name: registration.name,
                         email: registration.email,
@@ -287,7 +310,6 @@ export const handleCallback = async (req, res) => {
                 console.error("❌ Failed to send registration confirmation email:", emailErr);
             }
         }
-
 
         await registration.save();
 

@@ -6,7 +6,7 @@ import mongoose, { Schema } from "mongoose";
 // 1️⃣ Define schema
 const RegistrationSchema = new Schema(
   {
-    registrationId: { type: String, required: true, unique: true, index: true },
+    registrationId: { type: String, required: false, unique: true, index: true, default: null }, 
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true },
     mobile: { type: String, required: true, trim: true },

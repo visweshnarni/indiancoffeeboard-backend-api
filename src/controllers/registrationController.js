@@ -7,7 +7,14 @@ import Competition from '../models/Competition.js';
 
 // Helper function to generate a unique registration ID
 const generateRegistrationId = () => {
-  return `CFC2025${Date.now()}`;
+    // 1. Generate a random alphanumeric string (e.g., 'z9h7y6')
+    //    - Math.random() is converted to base 36 (0-9, a-z).
+    //    - substring(2) removes the leading '0.'
+    //    - slice(0, 6) ensures exactly 6 characters.
+    const randomAlphanumeric = Math.random().toString(36).substring(2).slice(0, 6);
+
+    // 2. Combine the 'REG-' prefix and the random part, then convert all to uppercase.
+    return `REG-${randomAlphanumeric}`.toUpperCase();
 };
 
 // --- POST: Create New Registration (Cloudinary Implementation) ---
@@ -85,7 +92,7 @@ export const createRegistration = async (req, res) => {
     const passportNumberToSave = passportIsRequired ? data.passportNumber : undefined;
 
     const newRegistration = new Registration({
-        registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
+        // registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
         name: data.name,
         email: data.email,
         mobile: data.mobile,
