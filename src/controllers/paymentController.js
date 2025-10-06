@@ -289,7 +289,7 @@ export const handleCallback = async (req, res) => {
                 await sendEmailWithTemplate({
             to: registration.email,
             name: registration.name,
-            templateKey: "YOUR_NCC_2025_TEMPLATE_KEY", // <-- Update with your ZeptoMail template key
+            templateKey: "2518b.554b0da719bc314.k1.2223f750-a1cf-11f0-b228-cabf48e1bf81.199b3bd3345", // <-- Update with your ZeptoMail template key
             mergeInfo: {
                 participantName: registration.name,
                 registrationId: registration.registrationId,
