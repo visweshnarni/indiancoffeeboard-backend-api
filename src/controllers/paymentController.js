@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import moment from "moment";
 import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js';
 import path from 'path';
+import sendEmailWithTemplate from "../utils/sendEmail.js"; 
 // import sendEmailWithTemplate from "../utils/sendEmail.js"; // Import if you have this utility
 
 // Load environment variables if not already loaded
