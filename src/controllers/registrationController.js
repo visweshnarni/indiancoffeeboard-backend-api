@@ -64,7 +64,7 @@ export const createRegistration = async (req, res) => {
         email: data.email,
         mobile: data.mobile,
         address: data.address,
-        // 🛑 'city' removed here based on schema update
+        competitionCity: data.competitionCity,
         state: data.state,
         pin: data.pin,
         aadhaarNumber: cleanedAadhaar,

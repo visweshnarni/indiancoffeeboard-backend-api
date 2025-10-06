@@ -11,7 +11,7 @@ const RegistrationSchema = new Schema(
     email: { type: String, required: true, trim: true, lowercase: true },
     mobile: { type: String, required: true, trim: true },
     address: { type: String, required: true },
-    // city: { type: String, required: true },
+    competitionCity: { type: String, required: true },
     state: { type: String, required: true },
     pin: { type: String, required: true },
     // Aadhaar number is a string field
