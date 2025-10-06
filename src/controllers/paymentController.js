@@ -83,21 +83,21 @@ export const registerAndPay = async (req, res) => {
             // Use the existing record's details to proceed to payment retry
             // This is a crucial difference from createRegistration, as we continue with payment flow.
             
-            // We should ensure the existing record is updated with new competition/amount if the user changed them.
-            if (exists.competition.toString() !== competitionId.toString() || exists.amount !== competitionDoc.price) {
-                // Decide if you want to update the existing record or force a new submission.
-                // For simplicity, we just return the existing record for a payment retry.
-                // For production, consider updating the amount/competition field of the existing record here.
-            }
+            // // We should ensure the existing record is updated with new competition/amount if the user changed them.
+            // if (exists.competition.toString() !== competitionId.toString() || exists.amount !== competitionDoc.price) {
+            //     // Decide if you want to update the existing record or force a new submission.
+            //     // For simplicity, we just return the existing record for a payment retry.
+            //     // For production, consider updating the amount/competition field of the existing record here.
+            // }
             
-            return res.status(200).json({
-                success: true,
-                registrationId: exists._id,
-                message: "Existing pending registration found. Proceed to retry payment.",
-                // You would typically redirect to payment with the existing record's details
-                // For now, we signal success and let the frontend handle the next step (like calling Instamojo again).
-                retryAllowed: true
-            });
+            // return res.status(200).json({
+            //     success: true,
+            //     registrationId: exists._id,
+            //     message: "Existing pending registration found. Proceed to retry payment.",
+            //     // You would typically redirect to payment with the existing record's details
+            //     // For now, we signal success and let the frontend handle the next step (like calling Instamojo again).
+            //     retryAllowed: true
+            // });
         }
         
         // --- End of Existing Registration Check ---
