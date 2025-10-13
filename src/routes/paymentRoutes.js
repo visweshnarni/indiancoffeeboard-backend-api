@@ -1,14 +1,14 @@
-import express from 'express';
+import express from "express";
 
 // Import all necessary functions from the unified controller
-import { 
-    registerAndPay, 
-    handleCallback, // Handles user redirect AND server-side verification
-    retryPayment // Handles payment retry for failed registrations
-} from '../controllers/paymentController.js'; 
+import {
+  registerAndPay,
+  handleCallback, // Handles user redirect AND server-side verification
+  retryPayment, // Handles payment retry for failed registrations
+} from "../controllers/paymentController.js";
 
 // Assuming your middleware is here
-import registrationUpload from '../middlewares/registrationUpload.js'; 
+import registrationUpload from "../middlewares/registrationUpload.js";
 
 const router = express.Router();
 
@@ -20,24 +20,23 @@ const router = express.Router();
 // --- 1. Initiate Registration & Payment ---
 // POST /api/payment/register-and-pay
 // Middleware handles file upload and basic validation first.
-router.post('/register-and-pay', registrationUpload, registerAndPay);
+router.post("/register-and-pay", registrationUpload, registerAndPay);
 
 // --- 2. Handle User Redirect & Verification ---
 // GET /api/payment/callback
 // Instamojo redirects the user's browser here (success or failure) to trigger verification.
-router.get('/callback', handleCallback); 
+router.get("/callback", handleCallback);
 
 // --- 3. Retry Payment ---
 // POST /api/payment/retry/:registrationId
 // Allows the frontend to request a new payment link for a failed/pending registration.
-router.post('/retry/:registrationId', retryPayment);
+router.post("/retry/:registrationId", retryPayment);
 
 // --- Webhook Route REMOVED ---
-// The original webhook route and the associated body-parsing middleware are removed 
-// as verification is now done inside handleCallback. 
+// The original webhook route and the associated body-parsing middleware are removed
+// as verification is now done inside handleCallback.
 // If you leave the old route.use('/webhook', express.urlencoded...) it will throw an error
 // if the /webhook route isn't defined, or if it's placed improperly.
 // We remove the router.use('/webhook', ...) line as well for a cleaner setup.
-
 
 export default router;

@@ -1,5 +1,6 @@
 import Registration from '../models/Registration.js';
 import { v2 as cloudinary } from 'cloudinary'; 
+import { Parser } from "json2csv";
 import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js'; 
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path'; // ✅ path is now correctly imported
@@ -214,4 +215,66 @@ export const deleteRegistrationById = async (req, res) => {
         }
         res.status(500).json({ error: "Failed to delete registration." });
     }
+};
+
+
+/**
+ * @route   GET /api/registration/export
+ * @desc    Export all registrations (CSV)
+ * @access  Admin / Internal
+ */
+export const exportRegistrationsCSV = async (req, res) => {
+  try {
+    // Optional filters from query
+    const { competitionId, paymentStatus, startDate, endDate } = req.query;
+    const filter = {};
+
+    if (competitionId) filter.competition = competitionId;
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    // Fetch data
+    const registrations = await Registration.find(filter)
+      .populate("competition", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!registrations.length) {
+      return res.status(404).json({ message: "No registrations found." });
+    }
+
+    // Prepare for CSV export
+    const formatted = registrations.map((r) => ({
+      RegistrationID: r.registrationId || "N/A",
+      Name: r.name || "",
+      Email: r.email || "",
+      Mobile: r.mobile || "",
+      Competition: r.competition?.name || "",
+      Amount: r.amount || "",
+      PaymentStatus: r.paymentStatus || "",
+      State: r.state || "",
+      CreatedAt: r.createdAt
+        ? new Date(r.createdAt).toLocaleString("en-IN")
+        : "",
+    }));
+
+    const fields = Object.keys(formatted[0]);
+    const json2csv = new Parser({ fields });
+    const csv = json2csv.parse(formatted);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("registrations_report.csv");
+    return res.send(csv);
+  } catch (error) {
+    console.error("❌ Error exporting registrations CSV:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to export registrations", error: error.message });
+  }
 };

@@ -22,6 +22,7 @@
     "express-validator": "^7.2.1",
     "get-stream": "^9.0.1",
     "instamojo-nodejs": "^0.0.5",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
     "mongoose": "^8.18.3",

@@ -5,7 +5,8 @@ import {
     updateRegistrationStatus, // <-- Use the new name
     getAllRegistrations, 
     getRegistrationById,
-    deleteRegistrationById
+    deleteRegistrationById,
+    exportRegistrationsCSV 
 } from '../controllers/registrationController.js';
 
 import registrationUpload from '../middlewares/registrationUpload.js'; 
@@ -23,13 +24,19 @@ router.patch('/registration', updateRegistrationStatus);
 
 // --- Admin Routes (Add Authorization Middleware Here if needed) ---
 
+
+router.get("/registration/export", exportRegistrationsCSV);
+
 // GET /api/registration (Get All)
 router.get('/registration', getAllRegistrations);
+
 
 // GET /api/registration/:id (Get By Mongoose _id)
 router.get('/registration/:id', getRegistrationById);
 
 // DELETE /api/registration/:id (Delete By Mongoose _id)
 router.delete('/registration/:id', deleteRegistrationById);
+
+
 
 export default router;
