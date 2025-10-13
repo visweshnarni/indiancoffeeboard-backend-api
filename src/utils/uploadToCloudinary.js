@@ -12,23 +12,34 @@ cloudinary.config({
 });
 
 /**
- * Upload PDF buffer to Cloudinary inside tdc/fullName/
- * @param {Buffer} buffer - PDF buffer
- * @param {string} filename - e.g. "16893728499-pan_upload.pdf"
- * @param {string} fullName - Folder like "John_A_Doe"
+ * Upload file buffer (PDF or image) to Cloudinary inside iicf/fullName/
+ * @param {Buffer} buffer - file buffer
+ * @param {string} filename - original filename (e.g. "passport.pdf" or "passport.jpg")
+ * @param {string} fullName - folder name like "John_Doe"
  */
 export const uploadBufferToCloudinary = async (buffer, filename, fullName) => {
   return new Promise((resolve, reject) => {
-    const publicId = `tdc/${fullName}/${filename.replace('.pdf', '')}`;
+    const ext = filename.split('.').pop().toLowerCase();
+    const isPDF = ext === 'pdf';
+
+    const publicId = `iicf/${fullName}/${filename.replace(/\.[^/.]+$/, '')}`;
+
+    const uploadOptions = {
+      public_id: publicId,
+      folder: `iicf/${fullName}`,
+      format: ext,
+      resource_type: isPDF ? 'raw' : 'image', // PDF = raw, others = image
+    };
+
     const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'raw',        // ensure it's treated as raw (PDF)
-        public_id: publicId,         // ensures folder structure
-        format: 'pdf'               // set correct format
-      },
+      uploadOptions,
       (error, result) => {
-        if (error) return reject(error);
-        return resolve(result.secure_url);
+        if (error) {
+          console.error('❌ Cloudinary Upload Error:', error);
+          return reject(error);
+        }
+        console.log('✅ Uploaded to Cloudinary:', result.secure_url);
+        resolve(result.secure_url);
       }
     );
 

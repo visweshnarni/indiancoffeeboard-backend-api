@@ -264,6 +264,7 @@ export const exportRegistrationsCSV = async (req, res) => {
       CompetitionName: r.competitionName || (r.competition?.name || ""),
       WorkPlace: r.workPlace || "",
       PassportNumber: r.passportNumber || "",
+      PassportFileUrl: r.passportFileUrl || "",
       Amount: r.amount || 0,
       PaymentStatus: r.paymentStatus || "",
       PaymentId: r.paymentId || "",
