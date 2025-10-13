@@ -255,7 +255,7 @@ export const exportRegistrationsCSV = async (req, res) => {
       Name: r.name || "",
       Email: r.email || "",
       Mobile: r.mobile || "",
-      Competition: r.competition?.name || "",
+      Competition: r.competitionName || "",
       Amount: r.amount || "",
       PaymentStatus: r.paymentStatus || "",
       State: r.state || "",
