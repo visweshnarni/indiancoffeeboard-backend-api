@@ -251,16 +251,27 @@ export const exportRegistrationsCSV = async (req, res) => {
 
     // Prepare for CSV export
     const formatted = registrations.map((r) => ({
-      RegistrationID: r.registrationId || "N/A",
+      RegistrationID: r.registrationId || "",
       Name: r.name || "",
       Email: r.email || "",
       Mobile: r.mobile || "",
-      Competition: r.competitionName || "",
-      Amount: r.amount || "",
-      PaymentStatus: r.paymentStatus || "",
+      Address: r.address || "",
+      CompetitionCity: r.competitionCity || "",
       State: r.state || "",
+      Pin: r.pin || "",
+      AadhaarNumber: r.aadhaarNumber || "",
+      CompetitionID: r.competition || "",
+      CompetitionName: r.competitionName || (r.competition?.name || ""),
+      WorkPlace: r.workPlace || "",
+      PassportNumber: r.passportNumber || "",
+      Amount: r.amount || 0,
+      PaymentStatus: r.paymentStatus || "",
+      PaymentId: r.paymentId || "",
       CreatedAt: r.createdAt
         ? new Date(r.createdAt).toLocaleString("en-IN")
+        : "",
+      UpdatedAt: r.updatedAt
+        ? new Date(r.updatedAt).toLocaleString("en-IN")
         : "",
     }));
 
