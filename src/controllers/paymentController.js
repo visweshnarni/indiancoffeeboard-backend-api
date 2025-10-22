@@ -6,6 +6,7 @@ import moment from "moment";
 import { uploadBufferToCloudinary } from '../utils/uploadToCloudinary.js';
 import path from 'path';
 import sendEmailWithTemplate from "../utils/sendEmail.js"; 
+import VenueDate from "../models/VenueDate.js";
 // import sendEmailWithTemplate from "../utils/sendEmail.js"; // Import if you have this utility
 
 // Load environment variables if not already loaded
@@ -274,38 +275,57 @@ export const handleCallback = async (req, res) => {
         // 3. Update Status and Save
         registration.paymentStatus = finalStatus;
 
-        if (finalStatus === 'success') {
-            
-            // ⭐️ CORE CHANGE: GENERATE registrationId ONLY ON SUCCESS ⭐️
-            if (!registration.registrationId) {
-                registration.registrationId = generateRegistrationId();
-                console.log(`✅ Payment SUCCESS. Generated Final Registration ID: ${registration.registrationId}`);
-            }
+        
 
-            console.log(`Payment confirmed for Registration ${registration._id}. Sending confirmation email...`);
-            
-            // The rest of the email logic remains the same
-            try {
-                await sendEmailWithTemplate({
-            to: registration.email,
-            name: registration.name,
-            templateKey: "2518b.554b0da719bc314.k1.2223f750-a1cf-11f0-b228-cabf48e1bf81.199b3bd3345", // <-- Update with your ZeptoMail template key
-            mergeInfo: {
-                participantName: registration.name,
-                registrationId: registration.registrationId,
-                competitionName: registration.competitionName,
-                mobile: registration.mobile,
-                amount: registration.amount.toFixed(2),
-                paymentId: registration.paymentId,
-                year: new Date().getFullYear()
-            },
-        });
-            } catch (emailErr) {
-                console.error("❌ Failed to send registration confirmation email:", emailErr);
-            }
-        }
+// inside your callback:
+if (finalStatus === 'success') {
 
-        await registration.save();
+  if (!registration.registrationId) {
+    registration.registrationId = generateRegistrationId();
+    console.log(`✅ Payment SUCCESS. Generated Final Registration ID: ${registration.registrationId}`);
+  }
+
+  // 🏢 Fetch venue info from DB
+  let venueInfo = "";
+  try {
+    const cityName = registration.competitionCity.toLowerCase();
+    const venueRecord = await VenueDate.findOne({ city: cityName });
+
+    if (venueRecord) {
+      venueInfo = venueRecord.venueDetails;
+    } else {
+      venueInfo = `Venue details for ${registration.competitionCity} will be shared soon.`;
+    }
+  } catch (venueErr) {
+    console.error("❌ Error fetching venue details:", venueErr);
+    venueInfo = "Venue details unavailable.";
+  }
+
+  console.log(`Payment confirmed for Registration ${registration._id}. Sending confirmation email...`);
+
+  try {
+    await sendEmailWithTemplate({
+      to: registration.email,
+      name: registration.name,
+      templateKey: "2518b.554b0da719bc314.k1.2223f750-a1cf-11f0-b228-cabf48e1bf81.199b3bd3345",
+      mergeInfo: {
+        participantName: registration.name,
+        registrationId: registration.registrationId,
+        competitionName: registration.competitionName,
+        mobile: registration.mobile,
+        amount: registration.amount.toFixed(2),
+        paymentId: registration.paymentId,
+        year: new Date().getFullYear(),
+        venue: venueInfo, // ⭐️ NEW FIELD for ZeptoMail
+      },
+    });
+  } catch (emailErr) {
+    console.error("❌ Failed to send registration confirmation email:", emailErr);
+  }
+}
+
+await registration.save();
+
 
         // 4. Redirect to Frontend
         const redirectUrl =
