@@ -1,12 +1,11 @@
 import multer from 'multer';
 import path from 'path';
-import Competition from '../models/Competition.js'; // ✅ Import Competition Model
+import Competition from '../models/Competition.js';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
 
 const storage = multer.memoryStorage();
 
-// Allow common image types and PDF for passportFile
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   
@@ -17,7 +16,6 @@ const fileFilter = (req, file, cb) => {
       cb(new Error('Passport file must be a PDF or image (JPG/PNG)'), false);
     }
   } else {
-    // Allow other fields to pass through
     cb(null, true);
   }
 };
@@ -26,16 +24,11 @@ const multerFields = [
   { name: 'passportFile', maxCount: 1 }
 ];
 
-// Define the non-optional fields needed for basic registration
 const REQUIRED_TEXT_FIELDS = [
   'name', 'email', 'mobile', 'address', 'state', 
-  'pin', 'aadhaarNumber', 'competition', 'acceptedTerms', 'amount' // ✅ Added 'amount'
+  'pin', 'aadhaarNumber', 'competition', 'acceptedTerms', 'amount'
 ];
 
-/**
- * Middleware for handling Competition Registration form data and file upload.
- * It dynamically checks the database for the passport requirement.
- */
 const registrationUpload = (req, res, next) => {
   const upload = multer({
     storage,
@@ -43,8 +36,7 @@ const registrationUpload = (req, res, next) => {
     limits: { fileSize: MAX_FILE_SIZE }
   });
 
-  // Use upload.fields() and wrap the handler in a promise/async function
-  upload.fields(multerFields)(req, res, async (err) => { // ✅ Made handler 'async'
+  upload.fields(multerFields)(req, res, async (err) => {
     
     // --- 1. Handle Multer Errors ---
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -61,7 +53,7 @@ const registrationUpload = (req, res, next) => {
         const body = req.body || {};
         const competitionId = body.competition; 
 
-        // A. Required Text Fields Check (Including the competition ID)
+        // A. Required Text Fields Check
         for (const field of REQUIRED_TEXT_FIELDS) {
             if (!body[field]) {
                 return res.status(400).json({ error: `Missing required field: ${field}` });
@@ -73,30 +65,29 @@ const registrationUpload = (req, res, next) => {
             return res.status(400).json({ error: "Competition ID is required for validation." });
         }
         
-        // Fetch competition to get the passportRequired flag
         const competition = await Competition.findById(competitionId);
         
         if (!competition) {
             return res.status(404).json({ error: "Invalid competition ID provided." });
         }
         
-        // ✅ Use the boolean flag from the database
         const passportRequired = competition.passportRequired; 
 
         // C. Conditional File Check
-        if (passportRequired && !passportFile) {
+        // ✅ THIS CHECK IS NOW REMOVED to make the passport optional.
+        // The middleware no longer blocks requests without a passport file.
+        // The controller will decide whether to process the file if it exists.
+        /* if (passportRequired && !passportFile) {
             return res.status(400).json({ error: 'Passport file is required for this competition.' });
         }
+        */
         
         // --- 3. Attach Cleaned Data to Request ---
-        
-        // Clean text fields
         req.cleanedFormData = {};
         Object.keys(body).forEach(key => {
             req.cleanedFormData[key] = typeof body[key] === 'string' ? body[key].trim() : body[key];
         });
 
-        // Attach file buffer and metadata (only if a file was provided)
         if (passportFile) {
             req.passportFile = passportFile;
         }

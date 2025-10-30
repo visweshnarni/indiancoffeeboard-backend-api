@@ -36,9 +36,9 @@ const generateRegistrationId = () => {
 const extractId = (val) => val ? val.replace(/\/$/, '').split('/').pop() : '';
 
 
-// --- 1. Initiate Registration and Payment (Equivalent to initiatePayment) ---
+// --- 1. Initiate Registration and Payment ---
 export const registerAndPay = async (req, res) => {
-    // Data from registrationUpload middleware (req.cleanedFormData and req.passportFile)
+    // Data from registrationUpload middleware
     const registrationData = req.cleanedFormData || {};
     const passportFile = req.passportFile;
 
@@ -51,17 +51,15 @@ export const registerAndPay = async (req, res) => {
 
     try {
         // 1. Fetch Competition Details
-        // Use .select() to get only what you need (like passportRequired)
         const competitionDoc = await Competition.findById(competitionId).select('name price passportRequired');
         if (!competitionDoc) {
             return res.status(404).json({ message: 'Competition not found.' });
         }
         
-        // 2. CHECK FOR EXISTING REGISTRATION (New Logic from createRegistration)
+        // 2. CHECK FOR EXISTING REGISTRATION
         const cleanedAadhaar = aadhaarNumber ? aadhaarNumber.replace(/\s/g, "") : null;
         
         if (!cleanedAadhaar) {
-            // Handle case where Aadhaar might be missing or invalid
             return res.status(400).json({ message: 'Aadhaar number is required.' });
         }
 
@@ -75,35 +73,12 @@ export const registerAndPay = async (req, res) => {
 
         if (exists) {
             if (exists.paymentStatus === "success") {
-                // Rejects new registration if payment is already complete
                 return res.status(409).json({ 
-                    error: "A registration with this email, mobile, or Aadhaar already exists and is paid. No new payment is needed."
+                    error: "A registration with this email, mobile, or Aadhaar already exists and is paid."
                 });
-            } 
-            
-            // Allows retry/proceed if payment is pending/failed
-            // Use the existing record's details to proceed to payment retry
-            // This is a crucial difference from createRegistration, as we continue with payment flow.
-            
-            // // We should ensure the existing record is updated with new competition/amount if the user changed them.
-            // if (exists.competition.toString() !== competitionId.toString() || exists.amount !== competitionDoc.price) {
-            //     // Decide if you want to update the existing record or force a new submission.
-            //     // For simplicity, we just return the existing record for a payment retry.
-            //     // For production, consider updating the amount/competition field of the existing record here.
-            // }
-            
-            // return res.status(200).json({
-            //     success: true,
-            //     registrationId: exists._id,
-            //     message: "Existing pending registration found. Proceed to retry payment.",
-            //     // You would typically redirect to payment with the existing record's details
-            //     // For now, we signal success and let the frontend handle the next step (like calling Instamojo again).
-            //     retryAllowed: true
-            // });
+            }
         }
         
-        // --- End of Existing Registration Check ---
-
         // 3. Validation
         if (parseFloat(amount) !== competitionDoc.price) {
             return res.status(400).json({ message: 'Incorrect amount provided based on competition price.' });
@@ -111,17 +86,11 @@ export const registerAndPay = async (req, res) => {
         
         const passportIsRequired = competitionDoc.passportRequired;
 
-        if (passportIsRequired) {
-             // Added conditional check from createRegistration logic
-            if (!registrationData.passportNumber) {
-                return res.status(400).json({ message: 'Passport number is required for this competition.' });
-            }
-            if (!passportFile) {
-                return res.status(400).json({ message: 'Passport file is required for this competition.' });
-            }
-        }
-        
-        // 4. Upload Passport File to Cloudinary (ONLY if passport is required)
+        // ✅ REMOVED: The strict validation block for passport file/number is gone.
+        // The logic now treats `passportRequired: true` as "optional."
+        // If the user provides a file, we process it; if not, we continue without error.
+
+        // 4. Upload Passport File to Cloudinary (ONLY if it's actually provided)
         if (passportIsRequired && passportFile) {
             const sanitizedName = name.replace(/\s/g, '_');
             const filename = `${Date.now()}-passport${path.extname(passportFile.originalname)}`;
@@ -131,17 +100,17 @@ export const registerAndPay = async (req, res) => {
             );
         }
 
-        // 5. Create and Save Registration Record (with 'pending' status)
-        // Conditional saving of passport number
-        const passportNumberToSave = passportIsRequired ? registrationData.passportNumber : undefined;
+        // 5. Create and Save Registration Record
+        const passportNumberToSave = (passportIsRequired && registrationData.passportNumber) 
+            ? registrationData.passportNumber 
+            : undefined;
 
         const newRegistration = new Registration({
             ...registrationData,
-            // registrationId: generateRegistrationId(), // NOTE: generateRegistrationId must be defined/imported
             competitionName: competitionDoc.name,
-            passportNumber: passportNumberToSave,       // Conditional
-            passportFileUrl: passportFileUrl,           // Conditional
-            aadhaarNumber: cleanedAadhaar,              // Save cleaned Aadhaar
+            passportNumber: passportNumberToSave, // Will be undefined if not provided
+            passportFileUrl: passportFileUrl,         // Will be null if not uploaded
+            aadhaarNumber: cleanedAadhaar,
             amount: competitionDoc.price,
             paymentStatus: 'pending',
             workPlace: registrationData.workPlace || "",
@@ -156,11 +125,10 @@ export const registerAndPay = async (req, res) => {
             buyer_name: name,
             email: email,
             mobile: mobile,
-            // Redirect URL is the ONLY confirmation URL used now
-            redirect_url: `${BACKEND_BASE_URL}/api/payment/callback?registration_id=${savedRegistration._id}` // NOTE: BACKEND_BASE_URL must be defined
+            redirect_url: `${BACKEND_BASE_URL}/api/payment/callback?registration_id=${savedRegistration._id}`
         };
 
-        // 7. Call Instamojo API // NOTE: axios, INSTAMOJO_URL, API_KEY, AUTH_TOKEN must be imported/defined
+        // 7. Call Instamojo API
         const response = await axios.post(INSTAMOJO_URL, payload, {
             headers: {
                 'X-Api-Key': API_KEY,
@@ -171,11 +139,10 @@ export const registerAndPay = async (req, res) => {
 
         if (response.data.success) {
             const payment_request = response.data.payment_request;
-            // Store the Instamojo Request ID in the paymentId field
             savedRegistration.paymentId = payment_request.id;
             await savedRegistration.save();
 
-            // 8. Send Instamojo payment URL
+            // 8. Send Instamojo payment URL to frontend
             res.status(200).json({
                 message: 'Registration created. Redirecting to payment.',
                 registrationId: savedRegistration._id,
