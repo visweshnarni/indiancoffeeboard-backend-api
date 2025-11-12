@@ -3,11 +3,18 @@ import Competition from '../models/Competition.js'; // Adjust path as needed
 // but for robustness, it's often good to ensure connection is checked.
 // For a standard Express setup using Mongoose, connecting once in server.js is common.
 
-// --- GET ALL COMPETITIONS ---
+// --- GET ALL COMPETITIONS (with optional city filter) ---
 export const getAllCompetitions = async (req, res) => {
   try {
-    // .find({}) returns all documents
-    const competitions = await Competition.find({}).lean();
+    const { city } = req.query;
+    let filter = {};
+
+    // If ?city=Hyderabad is provided → filter competitions from that city
+    if (city) {
+      filter.city = { $regex: new RegExp(city, "i") }; // case-insensitive search
+    }
+
+    const competitions = await Competition.find(filter).lean();
     res.status(200).json(competitions);
   } catch (error) {
     console.error("❌ Error fetching competitions:", error);
